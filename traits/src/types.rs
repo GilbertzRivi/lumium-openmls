@@ -22,6 +22,9 @@ pub enum AeadType {
 
     /// ChaCha20 Poly1305
     ChaCha20Poly1305 = 0x0003,
+
+    #[cfg(feature = "lumium-crypto")]
+    LumiumAes256GcmSiv = 0xF621
 }
 
 impl AeadType {
@@ -31,6 +34,8 @@ impl AeadType {
             AeadType::Aes128Gcm => 16,
             AeadType::Aes256Gcm => 16,
             AeadType::ChaCha20Poly1305 => 16,
+            #[cfg(feature = "lumium-crypto")]
+            AeadType::LumiumAes256GcmSiv => 16,
         }
     }
 
@@ -40,13 +45,20 @@ impl AeadType {
             AeadType::Aes128Gcm => 16,
             AeadType::Aes256Gcm => 32,
             AeadType::ChaCha20Poly1305 => 32,
+            #[cfg(feature = "lumium-crypto")]
+            AeadType::LumiumAes256GcmSiv => 32,
         }
     }
 
     /// Get the nonce size of the [`AeadType`] in bytes.
     pub const fn nonce_size(&self) -> usize {
         match self {
-            AeadType::Aes128Gcm | AeadType::Aes256Gcm | AeadType::ChaCha20Poly1305 => 12,
+            AeadType::Aes128Gcm
+            | AeadType::Aes256Gcm
+            | AeadType::ChaCha20Poly1305 => 12,
+
+            #[cfg(feature = "lumium-crypto")]
+            AeadType::LumiumAes256GcmSiv => 12,
         }
     }
 }
@@ -109,6 +121,8 @@ pub enum SignatureScheme {
     /// ML-DSA87
     #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]
     MLDSA87 = 0x0906,
+    #[cfg(feature = "lumium-crypto")]
+    LumiumDual = 0xF621
 }
 
 impl TryFrom<u16> for SignatureScheme {
@@ -125,6 +139,8 @@ impl TryFrom<u16> for SignatureScheme {
             0x0905 => Ok(SignatureScheme::MLDSA65),
             #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]
             0x0906 => Ok(SignatureScheme::MLDSA87),
+            #[cfg(feature = "lumium-crypto")]
+            0xF621 => Ok(SignatureScheme::LumiumDual),
             _ => Err(format!("Unsupported SignatureScheme: {value}")),
         }
     }
@@ -203,6 +219,9 @@ pub enum HpkeKemType {
     /// XWing combiner for ML-KEM and X25519
     #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]
     XWingKemDraft6 = 0x004D,
+
+    #[cfg(feature = "lumium-crypto")]
+    LumiumDual = 0xF621
 }
 
 /// KDF Types for HPKE
@@ -234,6 +253,9 @@ pub enum HpkeAeadType {
 
     /// Export-only
     Export = 0xFFFF,
+
+    #[cfg(feature = "lumium-crypto")]
+    LumiumAes256GcmSiv = 0xF621
 }
 
 /// 7.7. Update Paths
@@ -484,6 +506,9 @@ pub enum Ciphersuite {
     /// A custom variant of MLS_128_MLKEM768X25519_AES256GCM_SHA384_Ed25519 without hybrid KEM.
     #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]
     AIR_128_MLKEM768_AES256GCM_SHA384_Ed25519 = 0xF042,
+
+    #[cfg(feature = "lumium-crypto")]
+    LUMIUM_256_X25519MLKEM1024_AES256GCMSIV_SHA256_ED25519MLDSA87 = 0xF621,
 }
 
 impl core::fmt::Display for Ciphersuite {
@@ -535,6 +560,8 @@ impl TryFrom<u16> for Ciphersuite {
             0x0051 => Ok(Ciphersuite::MLS_192_MLKEM768_AES256GCM_SHA384_MLDSA65),
             #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]
             0x0907 => Ok(Ciphersuite::MLS_256_MLKEM1024_AES256GCM_SHA384_MLDSA87),
+            #[cfg(feature = "lumium-crypto")]
+            0xF621 => Ok(Ciphersuite::LUMIUM_256_X25519MLKEM1024_AES256GCMSIV_SHA256_ED25519MLDSA87),
             _ => Err(Self::Error::DecodingError(format!(
                 "{v} is not a valid ciphersuite value"
             ))),
@@ -611,6 +638,8 @@ impl Ciphersuite {
             Ciphersuite::MLS_256_MLKEM1024_AES256GCM_SHA512_MLDSA87 => HashType::Sha2_512,
             #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]
             Ciphersuite::AIR_128_MLKEM768_AES256GCM_SHA384_Ed25519 => HashType::Sha2_384,
+            #[cfg(feature = "lumium-crypto")]
+            Ciphersuite::LUMIUM_256_X25519MLKEM1024_AES256GCMSIV_SHA256_ED25519MLDSA87 => HashType::Sha2_256
         }
     }
 
@@ -656,6 +685,8 @@ impl Ciphersuite {
             Ciphersuite::MLS_192_MLKEM768_AES256GCM_SHA384_MLDSA65 => SignatureScheme::MLDSA65,
             #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]
             Ciphersuite::AIR_128_MLKEM768_AES256GCM_SHA384_Ed25519 => SignatureScheme::ED25519,
+            #[cfg(feature = "lumium-crypto")]
+            Ciphersuite::LUMIUM_256_X25519MLKEM1024_AES256GCMSIV_SHA256_ED25519MLDSA87 => SignatureScheme::LumiumDual
         }
     }
 
@@ -687,6 +718,8 @@ impl Ciphersuite {
             | Ciphersuite::MLS_256_MLKEM1024_AES256GCM_SHA384_MLDSA87 => AeadType::Aes256Gcm,
             #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]
             Ciphersuite::AIR_128_MLKEM768_AES256GCM_SHA384_Ed25519 => AeadType::Aes256Gcm,
+            #[cfg(feature = "lumium-crypto")]
+            Ciphersuite::LUMIUM_256_X25519MLKEM1024_AES256GCMSIV_SHA256_ED25519MLDSA87 => AeadType::LumiumAes256GcmSiv
         }
     }
 
@@ -720,6 +753,8 @@ impl Ciphersuite {
             Ciphersuite::MLS_256_MLKEM1024_AES256GCM_SHA512_MLDSA87 => HpkeKdfType::HkdfSha512,
             #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]
             Ciphersuite::AIR_128_MLKEM768_AES256GCM_SHA384_Ed25519 => HpkeKdfType::HkdfSha384,
+            #[cfg(feature = "lumium-crypto")]
+            Ciphersuite::LUMIUM_256_X25519MLKEM1024_AES256GCMSIV_SHA256_ED25519MLDSA87 => HpkeKdfType::HkdfSha256
         }
     }
 
@@ -751,6 +786,8 @@ impl Ciphersuite {
             | Ciphersuite::MLS_192_MLKEM768_AES256GCM_SHA384_MLDSA65 => HpkeKemType::MlKem768,
             #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]
             Ciphersuite::AIR_128_MLKEM768_AES256GCM_SHA384_Ed25519 => HpkeKemType::MlKem768,
+            #[cfg(feature = "lumium-crypto")]
+            Ciphersuite::LUMIUM_256_X25519MLKEM1024_AES256GCMSIV_SHA256_ED25519MLDSA87 => HpkeKemType::LumiumDual
         }
     }
 
@@ -782,6 +819,8 @@ impl Ciphersuite {
             | Ciphersuite::MLS_256_MLKEM1024_AES256GCM_SHA384_MLDSA87 => HpkeAeadType::AesGcm256,
             #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]
             Ciphersuite::AIR_128_MLKEM768_AES256GCM_SHA384_Ed25519 => HpkeAeadType::AesGcm256,
+            #[cfg(feature = "lumium-crypto")]
+            Ciphersuite::LUMIUM_256_X25519MLKEM1024_AES256GCMSIV_SHA256_ED25519MLDSA87 => HpkeAeadType::LumiumAes256GcmSiv
         }
     }
 

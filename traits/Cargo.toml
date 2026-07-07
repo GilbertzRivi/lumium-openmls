@@ -20,6 +20,8 @@ extensions-draft = []
 draft-ietf-mls-pq-ciphersuites = []
 virtual-clients-draft = ["extensions-draft"]
 
+lumium-crypto = []
+
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
 tls_codec = { workspace = true }

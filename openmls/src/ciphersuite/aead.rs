@@ -155,9 +155,15 @@ pub(crate) fn aead_key_gen(
             .random_vec(16)
             .expect("An unexpected error occurred.")
             .into(),
+
         openmls_traits::types::AeadType::Aes256Gcm
         | openmls_traits::types::AeadType::ChaCha20Poly1305 => rng
             .random_vec(32)
+            .expect("An unexpected error occurred.")
+            .into(),
+
+        _ => rng
+            .random_vec(alg.key_size())
             .expect("An unexpected error occurred.")
             .into(),
     }

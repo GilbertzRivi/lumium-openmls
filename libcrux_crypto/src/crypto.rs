@@ -34,6 +34,7 @@ impl OpenMlsCrypto for CryptoProvider {
     fn supports(&self, ciphersuite: Ciphersuite) -> Result<(), CryptoError> {
         match ciphersuite.aead_algorithm() {
             AeadType::ChaCha20Poly1305 | AeadType::Aes128Gcm | AeadType::Aes256Gcm => Ok(()),
+            _ => Err(CryptoError::UnsupportedCiphersuite),
         }?;
 
         match ciphersuite.signature_algorithm() {
@@ -133,7 +134,7 @@ impl OpenMlsCrypto for CryptoProvider {
         nonce: &[u8],
         aad: &[u8],
     ) -> Result<Vec<u8>, CryptoError> {
-        let alg = aead_alg(alg);
+        let alg = aead_alg(alg)?;
 
         use libcrux_traits::aead::typed_refs::Aead as _;
 
@@ -168,7 +169,7 @@ impl OpenMlsCrypto for CryptoProvider {
         nonce: &[u8],
         aad: &[u8],
     ) -> Result<Vec<u8>, CryptoError> {
-        let alg = aead_alg(alg);
+        let alg = aead_alg(alg)?;
 
         use libcrux_traits::aead::typed_refs::{Aead as _, DecryptError};
 
@@ -264,7 +265,7 @@ impl OpenMlsCrypto for CryptoProvider {
         aad: &[u8],
         ptxt: &[u8],
     ) -> Result<HpkeCiphertext, CryptoError> {
-        let mut config = hpke_config(config);
+        let mut config = hpke_config(config)?;
 
         let pk_r = hpke_rs::HpkePublicKey::new(pk_r.to_vec());
 
@@ -292,7 +293,7 @@ impl OpenMlsCrypto for CryptoProvider {
         info: &[u8],
         aad: &[u8],
     ) -> Result<Vec<u8>, CryptoError> {
-        let config = hpke_config(config);
+        let config = hpke_config(config)?;
 
         let sk_r = hpke_rs::HpkePrivateKey::new(sk_r.to_vec());
 
@@ -321,7 +322,7 @@ impl OpenMlsCrypto for CryptoProvider {
         exporter_context: &[u8],
         exporter_length: usize,
     ) -> Result<(KemOutput, ExporterSecret), CryptoError> {
-        let mut config = hpke_config(config);
+        let mut config = hpke_config(config)?;
 
         let pk_r = hpke_rs::HpkePublicKey::new(pk_r.to_vec());
 
@@ -343,7 +344,7 @@ impl OpenMlsCrypto for CryptoProvider {
         exporter_context: &[u8],
         exporter_length: usize,
     ) -> Result<ExporterSecret, CryptoError> {
-        let config = hpke_config(config);
+        let config = hpke_config(config)?;
 
         let sk_r = hpke_rs::HpkePrivateKey::new(sk_r.to_vec());
 
@@ -361,7 +362,7 @@ impl OpenMlsCrypto for CryptoProvider {
         config: HpkeConfig,
         ikm: &[u8],
     ) -> Result<HpkeKeyPair, CryptoError> {
-        let config = hpke_config(config);
+        let config = hpke_config(config)?;
 
         let key_pair: hpke_rs::HpkeKeyPair = config.derive_key_pair(ikm).map_err(|e| match e {
             hpke_rs::HpkeError::InvalidConfig => CryptoError::InvalidLength,
@@ -387,12 +388,12 @@ impl OpenMlsCrypto for CryptoProvider {
     }
 }
 
-fn hpke_config(config: HpkeConfig) -> hpke_rs::Hpke<HpkeLibcrux> {
-    let kem = hpke_kem(config.0);
+fn hpke_config(config: HpkeConfig) -> Result<hpke_rs::Hpke<HpkeLibcrux>, CryptoError> {
+    let kem = hpke_kem(config.0)?;
     let kdf = hpke_kdf(config.1);
-    let aead = hpke_aead(config.2);
+    let aead = hpke_aead(config.2)?;
 
-    hpke_rs::Hpke::new(hpke_rs::Mode::Base, kem, kdf, aead)
+    Ok(hpke_rs::Hpke::new(hpke_rs::Mode::Base, kem, kdf, aead))
 }
 
 fn hpke_kdf(kdf: HpkeKdfType) -> hpke_rs_crypto::types::KdfAlgorithm {
@@ -403,28 +404,37 @@ fn hpke_kdf(kdf: HpkeKdfType) -> hpke_rs_crypto::types::KdfAlgorithm {
     }
 }
 
-fn hpke_kem(kem: HpkeKemType) -> hpke_rs_crypto::types::KemAlgorithm {
+fn hpke_kem(kem: HpkeKemType) -> Result<hpke_rs_crypto::types::KemAlgorithm, CryptoError> {
     match kem {
-        HpkeKemType::DhKemP256 => hpke_rs_crypto::types::KemAlgorithm::DhKemP256,
-        HpkeKemType::DhKemP384 => hpke_rs_crypto::types::KemAlgorithm::DhKemP384,
-        HpkeKemType::DhKemP521 => hpke_rs_crypto::types::KemAlgorithm::DhKemP521,
-        HpkeKemType::DhKem25519 => hpke_rs_crypto::types::KemAlgorithm::DhKem25519,
-        HpkeKemType::DhKem448 => hpke_rs_crypto::types::KemAlgorithm::DhKem448,
+        HpkeKemType::DhKemP256 => Ok(hpke_rs_crypto::types::KemAlgorithm::DhKemP256),
+        HpkeKemType::DhKemP384 => Ok(hpke_rs_crypto::types::KemAlgorithm::DhKemP384),
+        HpkeKemType::DhKemP521 => Ok(hpke_rs_crypto::types::KemAlgorithm::DhKemP521),
+        HpkeKemType::DhKem25519 => Ok(hpke_rs_crypto::types::KemAlgorithm::DhKem25519),
+        HpkeKemType::DhKem448 => Ok(hpke_rs_crypto::types::KemAlgorithm::DhKem448),
+
         #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]
-        HpkeKemType::XWingKemDraft6 => hpke_rs_crypto::types::KemAlgorithm::XWingDraft06,
+        HpkeKemType::XWingKemDraft6 => Ok(hpke_rs_crypto::types::KemAlgorithm::XWingDraft06),
+
         #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]
-        HpkeKemType::MlKem768 => hpke_rs_crypto::types::KemAlgorithm::MlKem768,
+        HpkeKemType::MlKem768 => Ok(hpke_rs_crypto::types::KemAlgorithm::MlKem768),
+
         #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]
-        HpkeKemType::MlKem1024 => hpke_rs_crypto::types::KemAlgorithm::MlKem1024,
+        HpkeKemType::MlKem1024 => Ok(hpke_rs_crypto::types::KemAlgorithm::MlKem1024),
+
+        _ => Err(CryptoError::UnsupportedCiphersuite),
     }
 }
 
-fn hpke_aead(aead: HpkeAeadType) -> hpke_rs_crypto::types::AeadAlgorithm {
+fn hpke_aead(aead: HpkeAeadType) -> Result<hpke_rs_crypto::types::AeadAlgorithm, CryptoError> {
     match aead {
-        HpkeAeadType::AesGcm128 => hpke_rs_crypto::types::AeadAlgorithm::Aes128Gcm,
-        HpkeAeadType::AesGcm256 => hpke_rs_crypto::types::AeadAlgorithm::Aes256Gcm,
-        HpkeAeadType::ChaCha20Poly1305 => hpke_rs_crypto::types::AeadAlgorithm::ChaCha20Poly1305,
-        HpkeAeadType::Export => hpke_rs_crypto::types::AeadAlgorithm::HpkeExport,
+        HpkeAeadType::AesGcm128 => Ok(hpke_rs_crypto::types::AeadAlgorithm::Aes128Gcm),
+        HpkeAeadType::AesGcm256 => Ok(hpke_rs_crypto::types::AeadAlgorithm::Aes256Gcm),
+        HpkeAeadType::ChaCha20Poly1305 => {
+            Ok(hpke_rs_crypto::types::AeadAlgorithm::ChaCha20Poly1305)
+        }
+        HpkeAeadType::Export => Ok(hpke_rs_crypto::types::AeadAlgorithm::HpkeExport),
+
+        _ => Err(CryptoError::UnsupportedCiphersuite),
     }
 }
 
@@ -444,11 +454,13 @@ fn hash_alg(hash_type: HashType) -> libcrux_hmac::Algorithm {
     }
 }
 
-fn aead_alg(alg_type: AeadType) -> libcrux_aead::Aead {
+fn aead_alg(alg_type: AeadType) -> Result<libcrux_aead::Aead, CryptoError> {
     match alg_type {
-        AeadType::ChaCha20Poly1305 => libcrux_aead::Aead::ChaCha20Poly1305,
-        AeadType::Aes128Gcm => libcrux_aead::Aead::AesGcm128,
-        AeadType::Aes256Gcm => libcrux_aead::Aead::AesGcm256,
+        AeadType::ChaCha20Poly1305 => Ok(libcrux_aead::Aead::ChaCha20Poly1305),
+        AeadType::Aes128Gcm => Ok(libcrux_aead::Aead::AesGcm128),
+        AeadType::Aes256Gcm => Ok(libcrux_aead::Aead::AesGcm256),
+
+        _ => Err(CryptoError::UnsupportedAeadAlgorithm),
     }
 }
 

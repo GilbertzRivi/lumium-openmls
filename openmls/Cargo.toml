@@ -153,6 +153,12 @@ fork-resolution = []
 # Enable unchecked conversions for types that need to be verified or validated.
 unchecked-conversions = []
 
+lumium-crypto = [
+    "openmls_traits/lumium-crypto",
+    "openmls_rust_crypto?/lumium-crypto",
+    "openmls_libcrux_crypto?/lumium-crypto",
+]
+
 [dev-dependencies]
 criterion = { version = "^0.8", default-features = false }       # need to disable default features for wasm
 hex = { version = "0.4", features = ["serde"] }

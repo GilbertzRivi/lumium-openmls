@@ -51,3 +51,4 @@ virtual-clients-draft = [
     "dep:fpe",
     "dep:aes",
 ]
+lumium-crypto = ["openmls_traits/lumium-crypto"]

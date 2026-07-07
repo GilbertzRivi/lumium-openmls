@@ -58,12 +58,18 @@ fn kem_mode(kem: HpkeKemType) -> hpke_types::KemAlgorithm {
         HpkeKemType::DhKemP521 => hpke_types::KemAlgorithm::DhKemP521,
         HpkeKemType::DhKem25519 => hpke_types::KemAlgorithm::DhKem25519,
         HpkeKemType::DhKem448 => hpke_types::KemAlgorithm::DhKem448,
+
         #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]
         HpkeKemType::XWingKemDraft6 => hpke_types::KemAlgorithm::XWingDraft06,
         #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]
         HpkeKemType::MlKem768 => hpke_types::KemAlgorithm::MlKem768,
         #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]
         HpkeKemType::MlKem1024 => hpke_types::KemAlgorithm::MlKem1024,
+
+        #[cfg(feature = "lumium-crypto")]
+        HpkeKemType::LumiumDual => {
+            panic!("openmls_rust_crypto does not support Lumium HPKE")
+        }
     }
 }
 
@@ -83,6 +89,11 @@ fn aead_mode(aead: HpkeAeadType) -> hpke_types::AeadAlgorithm {
         HpkeAeadType::AesGcm256 => hpke_types::AeadAlgorithm::Aes256Gcm,
         HpkeAeadType::ChaCha20Poly1305 => hpke_types::AeadAlgorithm::ChaCha20Poly1305,
         HpkeAeadType::Export => hpke_types::AeadAlgorithm::HpkeExport,
+
+        #[cfg(feature = "lumium-crypto")]
+        HpkeAeadType::LumiumAes256GcmSiv => {
+            panic!("openmls_rust_crypto does not support Lumium HPKE AEAD")
+        }
     }
 }
 
@@ -195,7 +206,7 @@ impl OpenMlsCrypto for RustCrypto {
             HashType::Sha2_512 => Ok(Sha512::digest(data).as_slice().into()),
         }
     }
-
+    
     fn aead_encrypt(
         &self,
         alg: openmls_traits::types::AeadType,
@@ -227,6 +238,8 @@ impl OpenMlsCrypto for RustCrypto {
                     .map(|r| r.as_slice().into())
                     .map_err(|_| CryptoError::CryptoLibraryError)
             }
+
+            _ => Err(CryptoError::UnsupportedAeadAlgorithm),
         }
     }
 
@@ -261,6 +274,8 @@ impl OpenMlsCrypto for RustCrypto {
                     .map(|r| r.as_slice().into())
                     .map_err(|_| CryptoError::AeadDecryptionError)
             }
+
+            _ => Err(CryptoError::UnsupportedAeadAlgorithm),
         }
     }
 
